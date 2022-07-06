@@ -1,0 +1,126 @@
+## Manage security rules on a Palo Alto Firewall
+## Requires: panos_object_service.yaml
+#
+## Vars Example:
+#
+# ticket: CO99999
+# security_rule:
+# - source_ip: ["192.168.0.100"]
+#   destination_ip: ["any"]
+#   service: ["tcp_9000"]
+#   description: "Ansible test rule 0"
+#
+## Task Example:
+#
+#  - name: "include: create panos security rule"
+#    include: /srv/ansible/panos_security_rule.yaml
+#    with_indexed_items: "{{ security_rule }}"
+#    when: state is defined
+#
+---
+
+###
+# Derive firewall zone and devicegroup from prebuilt CSV.
+# Normally we would retrieve this from a functional IPAM.
+###
+
+# Example CSV file
+#
+# devicegroup,192.168.0.0/24,prod
+# devicegroup,192.168.100.0/24,dev
+# devicegroup,0.0.0.0/0,outside
+
+- name: "read_csv: read firewall zones from csv"
+  local_action:
+    module: read_csv
+    path: fwzones.csv
+    fieldnames: devicegroup,network,zone
+  register: fwzones
+  run_once: true
+
+- name: "set_fact: source details"
+  set_fact:
+    source_dgrp: "{{ item_tmp.1['devicegroup'] }}"
+    source_addr: "{{ source_addr|default([]) + [ item_tmp.0 ] }}"
+    source_zone: "{{ source_zone|default([]) + [ item_tmp.1['zone'] ] }}"
+  with_nested:
+  - "{{ item.1.source_ip }}"
+  - "{{ fwzones.list }}"
+  loop_control:
+    loop_var: item_tmp
+  when: ( item_tmp.0|ipaddr('int') >= item_tmp.1['network']|ipaddr('network')|ipaddr('int') ) and
+        ( item_tmp.0|ipaddr('int') <= item_tmp.1['network']|ipaddr('broadcast')|ipaddr('int') ) and
+        ( item_tmp.1['network']|ipaddr('int') != "0/0" )
+
+- name: "set_fact: destination zone"
+  set_fact:
+    destination_dgrp: "{{ item_tmp.1['devicegroup'] }}"
+    destination_zone: "{{ destination_zone|default([]) + [ item_tmp.1['zone'] ] }}"
+  with_nested:
+  - "{{ item.1.destination_ip }}"
+  - "{{ fwzones.list }}"
+  loop_control:
+    loop_var: item_tmp
+  when: ( item_tmp.0|ipaddr('int') >= item_tmp.1['network']|ipaddr('network')|ipaddr('int') ) and
+        ( item_tmp.0|ipaddr('int') <= item_tmp.1['network']|ipaddr('broadcast')|ipaddr('int') ) and
+        ( item_tmp.1['devicegroup'] == source_dgrp ) and ( destination_zone|default([])|length < item.1.destination_ip|unique|length )
+
+##
+# Done collecting firewall zone & devicegroup.
+##
+
+- name: "set_fact: services"
+  set_fact:
+    services: "{{ services|default([]) + [ service ] }}"
+    service_list: "{{ service_list|default([]) + [ {\"protocol\": {service.split('_')[0]: {\"port\": service.split('_')[1]}}, \"name\": service }] }}"
+  with_items: "{{ item.1.service }}"
+  loop_control:
+    loop_var: service
+
+- name: "include: create panos service object"
+  include: panos_object_service.yaml
+  with_items: "{{ service_list|unique }}"
+  loop_control:
+    loop_var: service
+  when: (state == "present")
+
+###
+# Testing against a single PA firewall, uncomment if running against Panorama
+###
+
+- name: "panos_security_rule: firewall rule"
+  local_action:
+    module: panos_security_rule
+    provider: "{{ panos_provider }}"
+    state: "{{ state }}"
+    rule_name: "{{ ticket|upper }}-{{ item.0 }}"
+    description: "{{ item.1.description }}"
+    tag_name: "ansible"
+    source_zone: "{{ source_zone|unique }}"
+    source_ip: "{{ source_addr|unique }}"
+    destination_zone: "{{ destination_zone|unique }}"
+    destination_ip: "{{ item.1.destination_ip|unique }}"
+    service: "{{ services|unique }}"
+#   devicegroup: "{{ source_dgrp|unique }}"
+    action: "allow"
+    commit: "False"
+  notify:
+  - commit pending changes
+
+- name: "include: create panos service object"
+  include: panos_object_service.yaml
+  with_items: "{{ service_list|unique }}"
+  loop_control:
+    loop_var: service
+  when: (state == "absent")
+
+- name: "set_fact: clear facts from run"
+  set_fact:
+    services: []
+    service_list: []
+    source_dgrp: ""
+    source_addr: []
+    source_zone: []
+    destination_dgrp: ""
+    destination_addr: []
+    destination_zone: []

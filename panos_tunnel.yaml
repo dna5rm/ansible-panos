@@ -1,0 +1,26 @@
+## Var Example:
+#
+#    tunnels:
+#      - { if: 2521, ip: 172.28.10.21/30,  zone: AWS-PROD, comment: 'AWS52RT01:Tu2204 - vpc-6cd2c417' }
+#
+## Task Example:
+#
+#  - include: /srv/ansible/panos_tunnel.yaml
+#    with_items: '{{ atl0_tunnels }}'
+#    loop_control:
+#      loop_var: tunnel
+#
+---
+- name: 'panos_tunnel: tunnel.{{ tunnel.if }} interface'
+  panos_tunnel:
+    ip_address: '{{ inventory_hostname }}'
+    username: '{{ panos_provider.username }}'
+    password: '{{ panos_provider.password }}'
+    if_name: 'tunnel.{{ tunnel.if }}'
+    ip: '{{ tunnel.ip }}'
+    mtu: '{{ tunnel.mtu | default("1420") }}'
+    zone_name: '{{ tunnel.zne | default("none") }}'
+    management_profile: '{{ tunnel.mgt | default("icmp-only") }}'
+    comment: '{{ tunnel.comment | default("Ansible Created") }}'
+    state: '{{ tunnel.state | default("absent") }}'
+    commit: False

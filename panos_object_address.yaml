@@ -1,0 +1,84 @@
+## Var Example:
+#
+#  obj_source:
+#  - { name: dummy001, address: 1.1.1.0/24 }
+#  - { name: dummy002, type: ip-range, address: 1.1.2.1-1.1.2.254 }
+#  - { name: dummy003, type: fqdn, address: dummy003.com }
+#
+## Task Example:
+#
+#  - name: 'include: create panos address object'
+#    include: /srv/ansible/panos_object_addresses.yaml
+#    with_items: '{{ obj_source }}'
+#
+---
+
+#################
+# Single Object #
+#################
+
+- name: attempt to locate existing address
+  block:
+
+  - name: 'panos_object: address - find {{ item.name }}'
+    panos_object:
+      ip_address: '{{ inventory_hostname }}'
+      username: '{{ panos_provider.username }}'
+      password: '{{ panos_provider.password }}'
+      addressobject: '{{ item.name }}'
+      devicegroup: '{{ devicegroup | default("") }}'
+      operation: 'find'
+    register: result
+
+  - name: 'set_fact: store existing object'
+    set_fact:
+      existing: '{{ result.stdout_lines | from_json | regex_replace("@") | regex_replace("(fqdn|ip-netmask|ip-range)", "address") }}'
+      pending: {}
+
+  - name: 'set_fact: compare pending changes'
+    set_fact:
+      pending: "{{ pending | combine({pitem.key: pitem.value}) }}"
+    when: (pitem.key not in ['type'])
+    with_dict: "{{ existing.entry }}"
+    loop_control:
+      loop_var: pitem
+
+  rescue:
+
+  - name: 'panos_object: address - add {{ item.name }}'
+    panos_object:
+      ip_address: '{{ inventory_hostname }}'
+      username: '{{ username }}'
+      password: '{{ password }}'
+      addressobject: '{{ item.name }}'
+      address: '{{ item.address }}'
+      address_type: '{{ item.type | default("ip-netmask") }}'
+      description: '{{ item.description | default("") }}'
+      devicegroup: '{{ devicegroup | default("") }}'
+      operation: 'add'
+    when: (item.address is defined)
+
+- name: 'panos_object: address - update {{ item.name }}'
+  panos_object:
+    ip_address: '{{ inventory_hostname }}'
+    username: '{{ username }}'
+    password: '{{ password }}'
+    addressobject: '{{ item.name }}'
+    address: '{{ item.address }}'
+    address_type: '{{ item.type | default("ip-netmask") }}'
+    description: '{{ item.description | default("") }}'
+    devicegroup: '{{ devicegroup | default("") }}'
+    operation: 'update'
+  when: (existing is defined) and (pending is defined) and
+        (existing.entry != pending)
+
+- name: 'panos_object: address - delete {{ item.name }}'
+  panos_object:
+    ip_address: '{{ inventory_hostname }}'
+    username: '{{ username }}'
+    password: '{{ password }}'
+    addressobject: '{{ item.name }}'
+    devicegroup: '{{ devicegroup | default("") }}'
+    operation: 'delete'
+  when: (existing is defined) and
+        (item.address is undefined)

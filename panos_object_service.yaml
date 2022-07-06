@@ -1,0 +1,74 @@
+## Var Example:
+#
+#  services:
+#  - { name: service-abc, protocol: { tcp: { port: '5000,6000-7000' } } }
+#
+## Task Example:
+#
+#  - name: "include: create panos address object"
+#    include: panos_object_service.yaml state="absent"
+#    with_items: "{{ services }}"
+#    loop_control:
+#      loop_var: service
+#
+---
+- name: attempt to locate existing address
+  block:
+
+  - name: "panos_object: service - find {{ service.name }}"
+    local_action:
+      module: panos_object
+      ip_address: "{{ inventory_hostname }}"
+      username: "{{ panos_provider.username }}"
+      password: "{{ panos_provider.password }}"
+      serviceobject: "{{ service.name }}"
+      devicegroup: "{{ devicegroup | default('') }}"
+      operation: "find"
+    register: result
+
+  - name: 'set_fact: existing service object'
+    set_fact:
+      existing: "{{ result.stdout_lines|from_json|json_query('entry')|regex_replace('@') }}"
+    when: (state == "present")
+
+  rescue:
+
+  - name: "panos_object: service - add {{ service.name }}"
+    local_action:
+      module: panos_object
+      ip_address: "{{ inventory_hostname }}"
+      username: "{{ panos_provider.username }}"
+      password: "{{ panos_provider.password }}"
+      serviceobject: "{{ service.name }}"
+      protocol: "{{ service.protocol | flatten | list | join('\", \"') }}"
+      destination_port: "{{ service | json_query('protocol.*.port') | list | join('\", \"') }}"
+      description: "{{ service.description | default('') }}"
+      devicegroup: "{{ devicegroup | default('') }}"
+      operation: 'add'
+    when: (state == "present")
+
+- name: "panos_object: service - update {{ service.name }}"
+  local_action:
+    module: panos_object
+    ip_address: "{{ inventory_hostname }}"
+    username: "{{ panos_provider.username }}"
+    password: "{{ panos_provider.password }}"
+    serviceobject: "{{ service.name }}"
+    protocol: "{{ service.protocol | flatten | list | join('\", \"') }}"
+    destination_port: "{{ service | json_query('protocol.*.port') | list | join('\", \"') }}"
+    description: "{{ service.description | default('') }}"
+    devicegroup: "{{ devicegroup | default('') }}"
+    operation: 'update'
+  when: (state == "present") and (existing is defined) and (existing != service)
+
+- name: "panos_object: service - delete {{ service.name }}"
+  local_action:
+    module: panos_object
+    ip_address: "{{ inventory_hostname }}"
+    username: "{{ panos_provider.username }}"
+    password: "{{ panos_provider.password }}"
+    serviceobject: "{{ service.name }}"
+    devicegroup: "{{ devicegroup | default('') }}"
+    operation: 'delete'
+  ignore_errors: yes
+  when: (state == "absent") and (result.stdout_lines is defined)

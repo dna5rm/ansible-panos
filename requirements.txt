@@ -1,0 +1,15 @@
+ansible
+asn1crypto
+bcrypt
+cffi
+cryptography
+idna
+Jinja2
+MarkupSafe
+pan-os-python
+paramiko
+pyasn1
+pycparser
+PyNaCl
+PyYAML
+six

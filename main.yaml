@@ -1,0 +1,31 @@
+#!/bin/env -S ansible-playbook -i inventory
+---
+- name: manage panos host
+  hosts: all
+  gather_facts: false
+
+  vars:
+
+    provider:
+      ip_address: "{{ ansible_host }}"
+      username: "{{ ansible_user }}"
+      password: "{{ ansible_password }}"
+
+  pre_tasks:
+
+    - name: Fail if not panos
+      ansible.builtin.fail:
+      no_log: true
+      when: ansible_network_os != "paloaltonetworks.panos"
+
+    - name: Gather all legacy facts
+      paloaltonetworks.panos.panos_facts:
+        provider: "{{ provider }}"
+        gather_subset:
+          - system
+
+  tasks:
+
+    - ansible.builtin.debug:
+        msg: "{{ ansible_facts }}"
+    - meta: end_play
