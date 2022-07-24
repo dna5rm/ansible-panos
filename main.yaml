@@ -28,4 +28,24 @@
 
     - ansible.builtin.debug:
         msg: "{{ ansible_facts }}"
-    - meta: end_play
+#    - meta: end_play
+
+    - name: vwire interfaces
+      paloaltonetworks.panos.panos_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item }}"
+        comment: "Ansible Managed"
+        mode: "virtual-wire"
+      ignore_errors: true
+      loop:
+        - ethernet1/3
+        - ethernet1/4
+
+    - name: Create Vwire
+      paloaltonetworks.panos.panos_virtual_wire:
+        provider: '{{ provider }}'
+        name: 'vwire1'
+        interface1: 'ethernet1/3'
+        interface2: 'ethernet1/4'
+        pass_through: true
+        state: present
