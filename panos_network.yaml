@@ -1,0 +1,72 @@
+---
+- name: Management profile(s)
+  paloaltonetworks.panos.panos_management_profile:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    ping: "{{ item.ping | default(false) }}"
+    ssh: "{{ item.ssh | default(false) }}"
+    https: "{{ item.https | default(false) }}"
+    snmp: "{{ item.snmp | default(false) }}"
+    response_pages: "{{ item.response_pages | default(false) }}"
+    userid_service: "{{ item.userid_service | default(false) }}"
+    state: "{{ item.state | default('present') }}"
+  notify: panos_commit
+  loop: "{{ mgmt_profiles }}"
+
+- name: Manage firewall security zones
+  block:
+    - name: panos_zone_facts
+      paloaltonetworks.panos.panos_zone_facts:
+        provider: "{{ provider }}"
+      register: zone_facts
+
+    - name: Security zone(s)
+      paloaltonetworks.panos.panos_zone:
+        provider: "{{ provider }}"
+        enable_userid: "{{ item.enable_userid | default(false) }}"
+        zone: "{{ item.zone }}"
+        mode: "{{ item.mode | default('layer3') }}"
+        state: "{{ item.state | default('present') }}"
+      notify: panos_commit
+      loop: "{{ zones }}"
+      when:
+        - item.mode|default('layer3') not in zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='mode')
+        - item.enable_userid|default(false)|bool != zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='enable_userid'|bool)
+
+# Some elements are not able to be configured via panos_vlan_interface.
+# Only bootstrap missing interfaces, do not touch otherwise.
+- name: Layer3 vlan interface(s)
+  paloaltonetworks.panos.panos_vlan_interface:
+    provider: '{{ provider }}'
+    name: "{{ item.name }}"
+    comment: "{{ item.comment | default('Ansible Managed') }}"
+    vlan_name: "{{ item.vlan_name }}"
+    vr_name: "{{ item.vr_name | default('default') }}"
+    zone_name: "{{ item.zone_name }}"
+    management_profile: "{{ item.management_profile | default() }}"
+    ipv6_enabled: "{{ item.ipv6_enabled | default(false) }}"
+    ip: "{{ item.ip | default([]) }}"
+  notify: panos_commit
+  loop: "{{ vlan_interfaces }}"
+  when:
+    - vlan_interfaces is defined
+    - ansible_facts.net_interfaces is defined
+    - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+#- name: vwire interfaces
+#  paloaltonetworks.panos.panos_interface:
+#    provider: "{{ provider }}"
+#    if_name: "{{ item }}"
+#    comment: "Ansible Managed"
+#    mode: "virtual-wire"
+#  ignore_errors: true
+#  loop:
+#    - ethernet1/3
+#    - ethernet1/4
+
+#- name: Create Vwire
+#  paloaltonetworks.panos.panos_virtual_wire:                                                                                         #        provider: '{{ provider }}'                                                                                                       #        name: 'vwire1'
+#    interface1: 'ethernet1/3'
+#    interface2: 'ethernet1/4'
+#    pass_through: true
+#    state: present

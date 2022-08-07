@@ -1,7 +1,7 @@
 #!/bin/env -S ansible-playbook -i inventory
 ---
 - name: manage panos host
-  hosts: all
+  hosts: pa440
   gather_facts: false
 
   vars:
@@ -18,34 +18,50 @@
       no_log: true
       when: ansible_network_os != "paloaltonetworks.panos"
 
-    - name: Gather all legacy facts
+    - name: panos_facts
       paloaltonetworks.panos.panos_facts:
         provider: "{{ provider }}"
         gather_subset:
           - system
+          - interfaces
 
   tasks:
 
     - ansible.builtin.debug:
         msg: "{{ ansible_facts }}"
-#    - meta: end_play
 
-    - name: vwire interfaces
-      paloaltonetworks.panos.panos_interface:
+    - name: Device management
+      paloaltonetworks.panos.panos_mgtconfig:
         provider: "{{ provider }}"
-        if_name: "{{ item }}"
-        comment: "Ansible Managed"
-        mode: "virtual-wire"
-      ignore_errors: true
-      loop:
-        - ethernet1/3
-        - ethernet1/4
+        domain: "{{ global.domain_name | default('local') }}"
+        hostname: "{{ inventory_hostname }}"
+        login_banner: "{{ global.banner.login | default('Ansible Managed') }}"
+        dns_server_primary: "{{ global.name_servers[0] | default('1.1.1.3') }}"
+        dns_server_secondary: "{{ global.name_servers[1] | default('1.0.0.3') }}"
+        timezone: 'UTC'
+      notify: panos_commit
+      when: global is defined
 
-    - name: Create Vwire
-      paloaltonetworks.panos.panos_virtual_wire:
+    - name: Admin user account(s)
+      paloaltonetworks.panos.panos_administrator:
+        provider: "{{ provider }}"
+        admin_username: "{{ item.name }}"
+        state: "{{ item.state | default('present')}}"
+        superuser: true
+        commit: false
+      notify: panos_commit
+      loop: "{{ users }}"
+      when:
+        - users is defined
+        - item.key is defined
+        - item.name == lookup('env','USER')
+
+    - name: Network tasks
+      block:
+        - ansible.builtin.include_tasks: panos_network.yaml
+
+  handlers:
+
+    - name: panos_commit
+      paloaltonetworks.panos.panos_commit:
         provider: '{{ provider }}'
-        name: 'vwire1'
-        interface1: 'ethernet1/3'
-        interface2: 'ethernet1/4'
-        pass_through: true
-        state: present

@@ -135,4 +135,5 @@ host_vars/
 group_vars
 group_vars/
 bootstrap.*
+/*-creds.json
 _*
