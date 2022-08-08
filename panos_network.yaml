@@ -3,13 +3,13 @@
   paloaltonetworks.panos.panos_management_profile:
     provider: "{{ provider }}"
     name: "{{ item.name }}"
-    ping: "{{ item.ping | default(false) }}"
-    ssh: "{{ item.ssh | default(false) }}"
-    https: "{{ item.https | default(false) }}"
-    snmp: "{{ item.snmp | default(false) }}"
-    response_pages: "{{ item.response_pages | default(false) }}"
-    userid_service: "{{ item.userid_service | default(false) }}"
-    state: "{{ item.state | default('present') }}"
+    ping: "{{ item.ping|default(false) }}"
+    ssh: "{{ item.ssh|default(false) }}"
+    https: "{{ item.https|default(false) }}"
+    snmp: "{{ item.snmp|default(false) }}"
+    response_pages: "{{ item.response_pages|default(false) }}"
+    userid_service: "{{ item.userid_service|default(false) }}"
+    state: "{{ item.state|default('present') }}"
   notify: panos_commit
   loop: "{{ mgmt_profiles }}"
 
@@ -23,50 +23,113 @@
     - name: Security zone(s)
       paloaltonetworks.panos.panos_zone:
         provider: "{{ provider }}"
-        enable_userid: "{{ item.enable_userid | default(false) }}"
+        enable_userid: "{{ item.enable_userid|default(false) }}"
         zone: "{{ item.zone }}"
-        mode: "{{ item.mode | default('layer3') }}"
-        state: "{{ item.state | default('present') }}"
+        mode: "{{ item.mode|default('layer3') }}"
+        state: "{{ item.state|default('present') }}"
       notify: panos_commit
       loop: "{{ zones }}"
       when:
         - item.mode|default('layer3') not in zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='mode')
         - item.enable_userid|default(false)|bool != zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='enable_userid'|bool)
 
+# Create an aggregate ethernet interface.
+# Bootstrap only! Manually configure: lacp, zone & vlan.
+- name: Aggregate interface(s)
+  paloaltonetworks.panos.panos_aggregate_interface:
+    provider: "{{ provider }}"
+    if_name: "{{ item.name }}"
+    comment: "{{ item.comment|default('Ansible Managed') }}"
+    mode: "{{ item.mode|default('layer2') }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  loop: "{{ interfaces|selectattr('type', 'equalto', 'aggregate') }}"
+  when:
+    - interfaces is defined
+    - ansible_facts.net_interfaces is defined
+    - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
 # Some elements are not able to be configured via panos_vlan_interface.
-# Only bootstrap missing interfaces, do not touch otherwise.
+# Bootstrap Only! Manually confiugre: ipv6
 - name: Layer3 vlan interface(s)
   paloaltonetworks.panos.panos_vlan_interface:
     provider: '{{ provider }}'
     name: "{{ item.name }}"
-    comment: "{{ item.comment | default('Ansible Managed') }}"
+    comment: "{{ item.comment|default('Ansible Managed') }}"
     vlan_name: "{{ item.vlan_name }}"
-    vr_name: "{{ item.vr_name | default('default') }}"
+    vr_name: "{{ item.vr_name|default('default') }}"
     zone_name: "{{ item.zone_name }}"
-    management_profile: "{{ item.management_profile | default() }}"
-    ipv6_enabled: "{{ item.ipv6_enabled | default(false) }}"
-    ip: "{{ item.ip | default([]) }}"
+    management_profile: "{{ item.management_profile|default() }}"
+    ipv6_enabled: "{{ item.ipv6_enabled|default(false) }}"
+    ip: "{{ item.ip|default([]) }}"
   notify: panos_commit
-  loop: "{{ vlan_interfaces }}"
+  loop: "{{ interfaces|selectattr('type', 'equalto', 'vlan') }}"
   when:
-    - vlan_interfaces is defined
+    - interfaces is defined
     - ansible_facts.net_interfaces is defined
     - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
-#- name: vwire interfaces
-#  paloaltonetworks.panos.panos_interface:
-#    provider: "{{ provider }}"
-#    if_name: "{{ item }}"
-#    comment: "Ansible Managed"
-#    mode: "virtual-wire"
-#  ignore_errors: true
-#  loop:
-#    - ethernet1/3
-#    - ethernet1/4
+# Always kicks back an error but works.
+# Ignoring errors for each task.
+- name: Manage interfaces
+  block:
+    - name: Virtual-wire interface(s)
+      paloaltonetworks.panos.panos_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        mode: "virtual-wire"
+        zone_name: "{{ item.zone_name }}"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire') }}"
+      when:
+        - interfaces is defined
+        - ansible_facts.net_interfaces is defined
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
-#- name: Create Vwire
-#  paloaltonetworks.panos.panos_virtual_wire:                                                                                         #        provider: '{{ provider }}'                                                                                                       #        name: 'vwire1'
-#    interface1: 'ethernet1/3'
-#    interface2: 'ethernet1/4'
-#    pass_through: true
-#    state: present
+    - name: Layer2 interface(s)
+      paloaltonetworks.panos.panos_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        mode: "layer2"
+        vlan_name: "{{ item.vlan_name }}"
+        zone_name: "{{ item.zone_name }}"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'layer2') }}"
+      when:
+        - interfaces is defined
+        - ansible_facts.net_interfaces is defined
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+    - name: Aggregate member interface(s)
+      paloaltonetworks.panos.panos_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        aggregate_group: "{{ item.type }}"
+        mode: "aggregate-group"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'match', '^ae[1-9]') }}"
+      when:
+        - interfaces is defined
+        - ansible_facts.net_interfaces is defined
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+- name: Virtual Wire(s)
+  paloaltonetworks.panos.panos_virtual_wire:
+    provider: "{{ provider }}"
+    name: "{{ item }}"
+    interface1: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|first }}"
+    interface2: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|last }}"
+    pass_through: true
+    state: "{{ item.state|default('present') }}"
+  no_log: true
+  notify: panos_commit
+  loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|map(attribute='vwire')|list|unique }}"
+  when:
+    - interfaces is defined
+    - ansible_facts.net_interfaces is defined
