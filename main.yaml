@@ -27,8 +27,8 @@
 
   tasks:
 
-    - ansible.builtin.debug:
-        msg: "{{ ansible_facts }}"
+#    - ansible.builtin.debug:
+#        msg: "{{ ansible_facts }}"
 
     - name: Device management
       paloaltonetworks.panos.panos_mgtconfig:
@@ -41,6 +41,73 @@
         timezone: 'UTC'
       notify: panos_commit
       when: global is defined
+
+    - name: Dynamic updates - anti-virus
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/anti-virus"
+        element: |
+          <recurring>
+            <daily>
+              <at>04:15</at>
+              <action>download-and-install</action>
+            </daily>
+            <threshold>5</threshold>
+          </recurring>
+      notify: panos_commit
+
+    - name: Dynamic updates - threats
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/threats"
+        element: |
+          <recurring>
+            <daily>
+              <at>04:15</at>
+              <action>download-and-install</action>
+            </daily>
+            <threshold>3</threshold>
+          </recurring>
+      notify: panos_commit
+
+    - name: Dynamic updates - wildfire
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/wildfire"
+        element: |
+          <recurring>
+            <every-hour>
+              <at>5</at>
+              <action>download-and-install</action>
+            </every-hour>
+          </recurring>
+      notify: panos_commit
+
+    - name: Dynamic updates - global-protect-clientless-vpn
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-clientless-vpn"
+        element: |
+          <recurring>
+            <daily>
+              <at>04:15</at>
+              <action>download-and-install</action>
+            </daily>
+          </recurring>
+      notify: panos_commit
+
+    - name: Dynamic updates - global-protect-datafile
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-datafile"
+        element: |
+          <recurring>
+            <daily>
+              <at>04:45</at>
+              <action>download-and-install</action>
+            </daily>
+          </recurring>
+      notify: panos_commit
 
     - name: Admin user account(s)
       paloaltonetworks.panos.panos_administrator:

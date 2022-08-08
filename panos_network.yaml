@@ -12,6 +12,37 @@
     state: "{{ item.state|default('present') }}"
   notify: panos_commit
   loop: "{{ mgmt_profiles }}"
+  when:
+    - mgmt_profiles is defined
+
+- name: IKE crypto profile(s)
+  paloaltonetworks.panos.panos_ike_crypto_profile:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    dh_group: "{{ item.dh_group|default([]) }}"
+    authentication: "{{ item.authentication|default([]) }}"
+    encryption: "{{ item.encryption|default([]) }}"
+    lifetime_seconds: "{{ item.lifetime_seconds|default('28800') }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  loop: "{{ crypto_profiles.ike }}"
+  when:
+    - crypto_profiles is defined
+    - crypto_profiles.ike is defined
+
+- name: IPsec crypto profile(s)
+  paloaltonetworks.panos.panos_ipsec_profile:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    esp_authentication: "{{ item.esp_authentication|default([]) }}"
+    esp_encryption: "{{ item.esp_encryption|default([]) }}"
+    lifetime_seconds: "{{ item.lifetime_seconds|default('3600') }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  loop: "{{ crypto_profiles.ipsec }}"
+  when:
+    - crypto_profiles is defined
+    - crypto_profiles.ipsec is defined
 
 - name: Manage firewall security zones
   block:
@@ -32,47 +63,46 @@
       when:
         - item.mode|default('layer3') not in zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='mode')
         - item.enable_userid|default(false)|bool != zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='enable_userid'|bool)
-
-# Create an aggregate ethernet interface.
-# Bootstrap only! Manually configure: lacp, zone & vlan.
-- name: Aggregate interface(s)
-  paloaltonetworks.panos.panos_aggregate_interface:
-    provider: "{{ provider }}"
-    if_name: "{{ item.name }}"
-    comment: "{{ item.comment|default('Ansible Managed') }}"
-    mode: "{{ item.mode|default('layer2') }}"
-    state: "{{ item.state|default('present') }}"
-  notify: panos_commit
-  loop: "{{ interfaces|selectattr('type', 'equalto', 'aggregate') }}"
   when:
-    - interfaces is defined
-    - ansible_facts.net_interfaces is defined
-    - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+    - zones is defined
 
-# Some elements are not able to be configured via panos_vlan_interface.
-# Bootstrap Only! Manually confiugre: ipv6
-- name: Layer3 vlan interface(s)
-  paloaltonetworks.panos.panos_vlan_interface:
-    provider: '{{ provider }}'
-    name: "{{ item.name }}"
-    comment: "{{ item.comment|default('Ansible Managed') }}"
-    vlan_name: "{{ item.vlan_name }}"
-    vr_name: "{{ item.vr_name|default('default') }}"
-    zone_name: "{{ item.zone_name }}"
-    management_profile: "{{ item.management_profile|default() }}"
-    ipv6_enabled: "{{ item.ipv6_enabled|default(false) }}"
-    ip: "{{ item.ip|default([]) }}"
-  notify: panos_commit
-  loop: "{{ interfaces|selectattr('type', 'equalto', 'vlan') }}"
-  when:
-    - interfaces is defined
-    - ansible_facts.net_interfaces is defined
-    - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
-
-# Always kicks back an error but works.
-# Ignoring errors for each task.
 - name: Manage interfaces
   block:
+    # Create an aggregate ethernet interface.
+    # Bootstrap only! Manually configure: lacp, zone & vlan.
+    - name: Aggregate interface(s)
+      paloaltonetworks.panos.panos_aggregate_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        mode: "{{ item.mode|default('layer2') }}"
+        state: "{{ item.state|default('present') }}"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'aggregate') }}"
+      when:
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+    # Some elements are not able to be configured via panos_vlan_interface.
+    # Bootstrap Only! Manually confiugre: ipv6
+    - name: Layer3 vlan interface(s)
+      paloaltonetworks.panos.panos_vlan_interface:
+        provider: '{{ provider }}'
+        name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        vlan_name: "{{ item.vlan_name }}"
+        vr_name: "{{ item.vr_name|default('default') }}"
+        zone_name: "{{ item.zone_name }}"
+        management_profile: "{{ item.management_profile|default() }}"
+        ipv6_enabled: "{{ item.ipv6_enabled|default(false) }}"
+        ip: "{{ item.ip|default([]) }}"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'vlan') }}"
+      when:
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+    # Kicks back an error but works.
     - name: Virtual-wire interface(s)
       paloaltonetworks.panos.panos_interface:
         provider: "{{ provider }}"
@@ -84,8 +114,6 @@
       notify: panos_commit
       loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire') }}"
       when:
-        - interfaces is defined
-        - ansible_facts.net_interfaces is defined
         - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
     - name: Layer2 interface(s)
@@ -100,8 +128,6 @@
       notify: panos_commit
       loop: "{{ interfaces|selectattr('type', 'equalto', 'layer2') }}"
       when:
-        - interfaces is defined
-        - ansible_facts.net_interfaces is defined
         - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
     - name: Aggregate member interface(s)
@@ -115,21 +141,34 @@
       notify: panos_commit
       loop: "{{ interfaces|selectattr('type', 'match', '^ae[1-9]') }}"
       when:
-        - interfaces is defined
-        - ansible_facts.net_interfaces is defined
         - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
-- name: Virtual Wire(s)
-  paloaltonetworks.panos.panos_virtual_wire:
-    provider: "{{ provider }}"
-    name: "{{ item }}"
-    interface1: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|first }}"
-    interface2: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|last }}"
-    pass_through: true
-    state: "{{ item.state|default('present') }}"
-  no_log: true
-  notify: panos_commit
-  loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|map(attribute='vwire')|list|unique }}"
+    - name: Layer2 subinterface(s)
+      paloaltonetworks.panos.panos_l2_subinterface:
+        provider: '{{ provider }}'
+        name: "{{ item.name }}"
+        tag: "{{ item.name|split('.')|last }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        vlan_name: "{{ item.vlan_name }}"
+        zone_name: "{{ item.zone_name }}"
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'subinterface') }}"
+      when:
+        - item.mode == "layer2"
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
+    - name: Virtual Wire(s)
+      paloaltonetworks.panos.panos_virtual_wire:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        interface1: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|first }}"
+        interface2: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|selectattr('vwire', 'equalto', item)|map(attribute='name')|last }}"
+        pass_through: true
+        state: "{{ item.state|default('present') }}"
+      no_log: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|map(attribute='vwire')|list|unique }}"
+
   when:
     - interfaces is defined
     - ansible_facts.net_interfaces is defined

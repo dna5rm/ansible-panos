@@ -6,7 +6,9 @@ cryptography
 idna
 Jinja2
 MarkupSafe
+pan-python
 pan-os-python
+pandevice
 paramiko
 pyasn1
 pycparser
