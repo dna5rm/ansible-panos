@@ -27,105 +27,13 @@
 
   tasks:
 
-    - name: Device management
-      paloaltonetworks.panos.panos_mgtconfig:
-        provider: "{{ provider }}"
-        domain: "{{ global.domain_name | default('local') }}"
-        hostname: "{{ inventory_hostname }}"
-        login_banner: "{{ global.banner.login | default('Ansible Managed') }}"
-        dns_server_primary: "{{ global.name_servers[0] | default('1.1.1.3') }}"
-        dns_server_secondary: "{{ global.name_servers[1] | default('1.0.0.3') }}"
-        timezone: 'UTC'
-      notify: panos_commit
-      when: global is defined
-
-    - name: Admin user account(s)
-      paloaltonetworks.panos.panos_administrator:
-        provider: "{{ provider }}"
-        admin_username: "{{ item.name }}"
-        state: "{{ item.state | default('present')}}"
-        superuser: true
-        commit: false
-      notify: panos_commit
-      loop: "{{ users }}"
-      when:
-        - users is defined
-        - item.name == lookup('env','USER')
-
-    - name: Dynamic update tasks
-      block:
-        - name: Dynamic updates - anti-virus
-          paloaltonetworks.panos.panos_config_element:
-            provider: "{{ provider }}"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/anti-virus"
-            element: |
-              <recurring>
-                <daily>
-                  <at>04:15</at>
-                  <action>download-and-install</action>
-                </daily>
-                <threshold>5</threshold>
-              </recurring>
-          notify: panos_commit
-
-        - name: Dynamic updates - threats
-          paloaltonetworks.panos.panos_config_element:
-            provider: "{{ provider }}"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/threats"
-            element: |
-              <recurring>
-                <daily>
-                  <at>04:15</at>
-                  <action>download-and-install</action>
-                </daily>
-                <threshold>3</threshold>
-              </recurring>
-          notify: panos_commit
-
-        - name: Dynamic updates - wildfire
-          paloaltonetworks.panos.panos_config_element:
-            provider: "{{ provider }}"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/wildfire"
-            element: |
-              <recurring>
-                <every-hour>
-                  <at>5</at>
-                  <action>download-and-install</action>
-                </every-hour>
-              </recurring>
-          notify: panos_commit
-
-        - name: Dynamic updates - global-protect-clientless-vpn
-          paloaltonetworks.panos.panos_config_element:
-            provider: "{{ provider }}"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-clientless-vpn"
-            element: |
-              <recurring>
-                <daily>
-                  <at>04:15</at>
-                  <action>download-and-install</action>
-                </daily>
-              </recurring>
-          notify: panos_commit
-
-        - name: Dynamic updates - global-protect-datafile
-          paloaltonetworks.panos.panos_config_element:
-            provider: "{{ provider }}"
-            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-datafile"
-            element: |
-              <recurring>
-                <daily>
-                  <at>04:45</at>
-                  <action>download-and-install</action>
-                </daily>
-              </recurring>
-          notify: panos_commit
+#   - ansible.builtin.debug:
+#       msg: "{{ address_objects|map(attribute='tag')|flatten|community.general.counter|dict2items|rejectattr('value', '<', 2)|map(attribute='key')|list }}"
 
     - name: Imported tasks
       block:
-#       - ansible.builtin.debug:
-#           msg: "{{ address_objects|map(attribute='tag')|flatten|unique }}"
-        - ansible.builtin.include_tasks: panos_network.yaml
+#        - ansible.builtin.include_tasks: panos_system.yaml
+#        - ansible.builtin.include_tasks: panos_network.yaml
         - ansible.builtin.include_tasks: panos_objects.yaml
 
   handlers:

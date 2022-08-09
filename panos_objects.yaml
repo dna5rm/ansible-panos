@@ -20,5 +20,17 @@
         state: "{{ item.state|default('present') }}"
       notify: panos_commit
       loop: "{{ address_objects }}"
+
+    # Create a dynamic address group if addresses share tag names.
+    - name: Dynamic address group(s)
+      paloaltonetworks.panos.panos_address_group:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        dynamic_value: "'{{ item }}'"
+        tag: ['{{ item }}']
+      notify: panos_commit
+      loop: "{{ address_objects|map(attribute='tag')|flatten|community.general.counter|dict2items|rejectattr('value', '<', 2)|map(attribute='key')|list }}"
+      when: item|lower != "any"
+
   when:
     - address_objects is defined
