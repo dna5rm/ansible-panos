@@ -1,0 +1,24 @@
+---
+- name: Address object tasks
+  block:
+    - name: Address tag objects(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ address_objects|map(attribute='tag')|flatten|unique|default([]) }}"
+
+    - name: Address object(s)
+      paloaltonetworks.panos.panos_address_object:
+        provider: "{{ provider }}"
+        name: "{{ item.name }}"
+        address_type: "{{ item.address_type|default('ip-netmask') }}"
+        value: "{{ item.value }}"
+        description: "{{ item.description|default('Ansible Managed') }}"
+        tag: "{{ item.tag|default([]) }}"
+        state: "{{ item.state|default('present') }}"
+      notify: panos_commit
+      loop: "{{ address_objects }}"
+  when:
+    - address_objects is defined

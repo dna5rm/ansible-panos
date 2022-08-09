@@ -27,9 +27,6 @@
 
   tasks:
 
-#    - ansible.builtin.debug:
-#        msg: "{{ ansible_facts }}"
-
     - name: Device management
       paloaltonetworks.panos.panos_mgtconfig:
         provider: "{{ provider }}"
@@ -42,73 +39,6 @@
       notify: panos_commit
       when: global is defined
 
-    - name: Dynamic updates - anti-virus
-      paloaltonetworks.panos.panos_config_element:
-        provider: "{{ provider }}"
-        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/anti-virus"
-        element: |
-          <recurring>
-            <daily>
-              <at>04:15</at>
-              <action>download-and-install</action>
-            </daily>
-            <threshold>5</threshold>
-          </recurring>
-      notify: panos_commit
-
-    - name: Dynamic updates - threats
-      paloaltonetworks.panos.panos_config_element:
-        provider: "{{ provider }}"
-        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/threats"
-        element: |
-          <recurring>
-            <daily>
-              <at>04:15</at>
-              <action>download-and-install</action>
-            </daily>
-            <threshold>3</threshold>
-          </recurring>
-      notify: panos_commit
-
-    - name: Dynamic updates - wildfire
-      paloaltonetworks.panos.panos_config_element:
-        provider: "{{ provider }}"
-        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/wildfire"
-        element: |
-          <recurring>
-            <every-hour>
-              <at>5</at>
-              <action>download-and-install</action>
-            </every-hour>
-          </recurring>
-      notify: panos_commit
-
-    - name: Dynamic updates - global-protect-clientless-vpn
-      paloaltonetworks.panos.panos_config_element:
-        provider: "{{ provider }}"
-        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-clientless-vpn"
-        element: |
-          <recurring>
-            <daily>
-              <at>04:15</at>
-              <action>download-and-install</action>
-            </daily>
-          </recurring>
-      notify: panos_commit
-
-    - name: Dynamic updates - global-protect-datafile
-      paloaltonetworks.panos.panos_config_element:
-        provider: "{{ provider }}"
-        xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-datafile"
-        element: |
-          <recurring>
-            <daily>
-              <at>04:45</at>
-              <action>download-and-install</action>
-            </daily>
-          </recurring>
-      notify: panos_commit
-
     - name: Admin user account(s)
       paloaltonetworks.panos.panos_administrator:
         provider: "{{ provider }}"
@@ -120,12 +50,83 @@
       loop: "{{ users }}"
       when:
         - users is defined
-        - item.key is defined
         - item.name == lookup('env','USER')
 
-    - name: Network tasks
+    - name: Dynamic update tasks
       block:
+        - name: Dynamic updates - anti-virus
+          paloaltonetworks.panos.panos_config_element:
+            provider: "{{ provider }}"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/anti-virus"
+            element: |
+              <recurring>
+                <daily>
+                  <at>04:15</at>
+                  <action>download-and-install</action>
+                </daily>
+                <threshold>5</threshold>
+              </recurring>
+          notify: panos_commit
+
+        - name: Dynamic updates - threats
+          paloaltonetworks.panos.panos_config_element:
+            provider: "{{ provider }}"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/threats"
+            element: |
+              <recurring>
+                <daily>
+                  <at>04:15</at>
+                  <action>download-and-install</action>
+                </daily>
+                <threshold>3</threshold>
+              </recurring>
+          notify: panos_commit
+
+        - name: Dynamic updates - wildfire
+          paloaltonetworks.panos.panos_config_element:
+            provider: "{{ provider }}"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/wildfire"
+            element: |
+              <recurring>
+                <every-hour>
+                  <at>5</at>
+                  <action>download-and-install</action>
+                </every-hour>
+              </recurring>
+          notify: panos_commit
+
+        - name: Dynamic updates - global-protect-clientless-vpn
+          paloaltonetworks.panos.panos_config_element:
+            provider: "{{ provider }}"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-clientless-vpn"
+            element: |
+              <recurring>
+                <daily>
+                  <at>04:15</at>
+                  <action>download-and-install</action>
+                </daily>
+              </recurring>
+          notify: panos_commit
+
+        - name: Dynamic updates - global-protect-datafile
+          paloaltonetworks.panos.panos_config_element:
+            provider: "{{ provider }}"
+            xpath: "/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/update-schedule/global-protect-datafile"
+            element: |
+              <recurring>
+                <daily>
+                  <at>04:45</at>
+                  <action>download-and-install</action>
+                </daily>
+              </recurring>
+          notify: panos_commit
+
+    - name: Imported tasks
+      block:
+#       - ansible.builtin.debug:
+#           msg: "{{ address_objects|map(attribute='tag')|flatten|unique }}"
         - ansible.builtin.include_tasks: panos_network.yaml
+        - ansible.builtin.include_tasks: panos_objects.yaml
 
   handlers:
 
