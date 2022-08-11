@@ -27,17 +27,15 @@
 
   tasks:
 
-#   - ansible.builtin.debug:
-#       msg: "{{ address_objects|map(attribute='tag')|flatten|community.general.counter|dict2items|rejectattr('value', '<', 2)|map(attribute='key')|list }}"
-
-    - name: Imported tasks
-      block:
-#        - ansible.builtin.include_tasks: panos_system.yaml
-#        - ansible.builtin.include_tasks: panos_network.yaml
-        - ansible.builtin.include_tasks: panos_objects.yaml
+     - name: Imported tasks
+       block:
+         - ansible.builtin.include_tasks: panos_system.yaml
+         - ansible.builtin.include_tasks: panos_network.yaml
+         - ansible.builtin.include_tasks: panos_objects.yaml
+         - ansible.builtin.include_tasks: panos_policies.yaml
 
   handlers:
 
     - name: panos_commit
-      paloaltonetworks.panos.panos_commit:
+      paloaltonetworks.panos.panos_commit_firewall:
         provider: '{{ provider }}'

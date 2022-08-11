@@ -1,4 +1,32 @@
 ---
+- name: LLDP tasks
+  block:
+    - name: LLDP profile(s)
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/network/profiles/lldp-profile"
+        element: |
+          <entry name="lldp">
+            <option-tlvs>
+              <management-address>
+                <enabled>yes</enabled>
+              </management-address>
+              <port-description>yes</port-description>
+              <system-name>yes</system-name>
+              <system-description>yes</system-description>
+              <system-capabilities>yes</system-capabilities>
+            </option-tlvs>
+            <snmp-syslog-notification>yes</snmp-syslog-notification>
+          </entry>
+      notify: panos_commit
+
+    - name: Enable LLDP
+      paloaltonetworks.panos.panos_config_element:
+        provider: "{{ provider }}"
+        xpath: "/config/devices/entry[@name='localhost.localdomain']/network/lldp"
+        element: "<enable>yes</enable>"
+      notify: panos_commit
+
 - name: Management profile(s)
   paloaltonetworks.panos.panos_management_profile:
     provider: "{{ provider }}"
@@ -45,24 +73,8 @@
     - crypto_profiles.ipsec is defined
 
 - name: Manage firewall security zones
-  block:
-    - name: panos_zone_facts
-      paloaltonetworks.panos.panos_zone_facts:
-        provider: "{{ provider }}"
-      register: zone_facts
-
-    - name: Security zone(s)
-      paloaltonetworks.panos.panos_zone:
-        provider: "{{ provider }}"
-        enable_userid: "{{ item.enable_userid|default(false) }}"
-        zone: "{{ item.zone }}"
-        mode: "{{ item.mode|default('layer3') }}"
-        state: "{{ item.state|default('present') }}"
-      notify: panos_commit
-      loop: "{{ zones }}"
-      when:
-        - item.mode|default('layer3') not in zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='mode')
-        - item.enable_userid|default(false)|bool != zone_facts.zones|selectattr('zone', 'in', item.zone)|map(attribute='enable_userid'|bool)
+  ansible.builtin.include_tasks: panos_network_zones.yaml
+  loop: "{{ zones }}"
   when:
     - zones is defined
 
@@ -143,19 +155,20 @@
       when:
         - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
-    - name: Layer2 subinterface(s)
-      paloaltonetworks.panos.panos_l2_subinterface:
-        provider: '{{ provider }}'
-        name: "{{ item.name }}"
-        tag: "{{ item.name|split('.')|last }}"
-        comment: "{{ item.comment|default('Ansible Managed') }}"
-        vlan_name: "{{ item.vlan_name }}"
-        zone_name: "{{ item.zone_name }}"
-      notify: panos_commit
-      loop: "{{ interfaces|selectattr('type', 'equalto', 'subinterface') }}"
-      when:
-        - item.mode == "layer2"
-        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+     # This module is compltely broken. - ver. 3.0.0
+#    - name: Layer2 subinterface(s)
+#      paloaltonetworks.panos.panos_l2_subinterface:
+#        provider: '{{ provider }}'
+#        name: "{{ item.name }}"
+#        tag: "{{ item.name|split('.')|last }}"
+#        comment: "{{ item.comment|default('Ansible Managed') }}"
+#        vlan_name: "{{ item.vlan_name }}"
+#        zone_name: "{{ item.zone_name }}"
+#      notify: panos_commit
+#      loop: "{{ interfaces|selectattr('type', 'equalto', 'subinterface') }}"
+#      when:
+#        - item.mode == "layer2"
+#        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
     - name: Virtual Wire(s)
       paloaltonetworks.panos.panos_virtual_wire:

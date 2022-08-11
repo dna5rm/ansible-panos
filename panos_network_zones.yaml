@@ -1,0 +1,27 @@
+---
+- name: include_tasks condition check
+  ansible.builtin.fail:
+    msg: "include_tasks loop conditions failed"
+  when: (zones is not defined) or
+        (item is not defined) or
+        (item.name is not defined)
+
+- name: panos_zone_facts - {{ item.name }}
+  paloaltonetworks.panos.panos_zone:
+    provider: "{{ provider }}"
+    zone: "{{ item.name }}"
+    state: 'gathered'
+  ignore_errors: true
+  register: zone_facts
+
+- name: Security zone(s) - {{ item.name }}
+  paloaltonetworks.panos.panos_zone:
+    provider: "{{ provider }}"
+    enable_userid: "{{ item.enable_userid|default(false) }}"
+    zone: "{{ item.name }}"
+    mode: "{{ item.mode|default('layer3') }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  when: (zone_facts.failed is true) or
+        (item.mode|default('layer3') != zone_facts.gathered.mode) or
+        (item.enable_userid|default(false) != zone_facts.gathered.enable_userid)

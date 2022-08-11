@@ -5,6 +5,8 @@
       paloaltonetworks.panos.panos_tag_object:
         provider: "{{ provider }}"
         name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
         state: "present"
       notify: panos_commit
       loop: "{{ address_objects|map(attribute='tag')|flatten|unique|default([]) }}"
@@ -34,3 +36,40 @@
 
   when:
     - address_objects is defined
+
+- name: Service object tasks
+  block:
+    - name: Service tag objects(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ service_objects|map(attribute='tag')|flatten|unique|default([]) }}"
+
+    - name: Service object(s)
+      paloaltonetworks.panos.panos_service_object:
+        provider: "{{ provider }}"
+        name: "{{ item.name }}"
+        destination_port: "{{ item.destination_port }}"
+        protocol: "{{ item.protocol|default('tcp') }}"
+        description: "{{ item.description|default('Ansible Managed') }}"
+        tag: "{{ item.tag|default([]) }}"
+        state: "{{ item.state|default('present') }}"
+      notify: panos_commit
+      loop: "{{ service_objects }}"
+
+    - name: Service group(s)
+      paloaltonetworks.panos.panos_service_group:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        value: "{{ service_objects|selectattr('tag', 'contains', item)|map(attribute='name') }}"
+        tag: "{{ item }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ service_objects|map(attribute='tag', default='')|flatten|unique }}"
+
+  when:
+    - service_objects is defined
