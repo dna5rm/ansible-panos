@@ -25,3 +25,12 @@
   when: (zone_facts.failed is true) or
         (item.mode|default('layer3') != zone_facts.gathered.mode) or
         (item.enable_userid|default(false) != zone_facts.gathered.enable_userid)
+
+- name: Security rule tag(s)
+  paloaltonetworks.panos.panos_tag_object:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    color: "{{ item.color|default('light gray') }}"
+    comments: "zone {{ item.name }}"
+    state: "present"
+  notify: panos_commit

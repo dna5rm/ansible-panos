@@ -1,68 +1,142 @@
 ---
-- name: Security rule tag(s)
-  paloaltonetworks.panos.panos_tag_object:
-    provider: "{{ provider }}"
-    name: "{{ item }}"
-    color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
-    comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
-    state: "present"
-  notify: panos_commit
-  loop: "{{ security_rules|map(attribute='tag_name', default='')|flatten|unique }}"
+- name: Security rule tasks
+  block:
+    - name: Security rule tag(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ security_rules|map(attribute='tag_name', default='')|flatten|unique }}"
+      when: item != ""
 
-- name: Security rule group tag(s)
-  paloaltonetworks.panos.panos_tag_object:
-    provider: "{{ provider }}"
-    name: "{{ item }}"
-    color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
-    comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
-    state: "present"
-  notify: panos_commit
-  loop: "{{ security_rules|map(attribute='group_tag', default='')|unique }}"
+    - name: Security rule group tag(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ security_rules|map(attribute='group_tag', default='')|unique }}"
+      when: item != ""
 
-- name: Security rule(s)
-  paloaltonetworks.panos.panos_security_rule:
-    provider: "{{ provider }}"
-    location: "{{ item.location|default(omit) }}"
-    existing_rule: "{{ item.existing_rule|default(omit) }}"
-    state: "{{ item.state|default('present') }}"
-    disabled: "{{ item.disabled|default(omit) }}"
-    # General
-    rule_name: "{{ item.rule_name }}"
-    rule_type: "{{ item.rule_type|default(omit) }}"
-    description: "{{ item.description|default(omit) }}"
-    tag_name: "{{ item.tag_name|default(omit) }}"
-    group_tag: "{{ item.group_tag|default(omit) }}"
-    # Source
-    source_zone: "{{ item.source_zone|default(omit) }}"
-    source_ip: "{{ item.source_ip|default(omit) }}"
-    negate_source: "{{ item.negate.source|default(omit) }}"
-    source_user: "{{ item.source_user|default(omit) }}"
-    # Destination
-    destination_zone: "{{ item.destination_zone|default(omit) }}"
-    destination_ip: "{{ item.destination_ip|default(omit) }}"
-    negate_destination: "{{ item.negate_destination|default(omit) }}"
-    # Application
-    application: "{{ item.application|default(omit) }}"
-    # Service & URL Category
-    service: "{{ item.service|default(omit) }}"
-    category: "{{ item.category|default(omit) }}"
-    # Action Settings
-    action: "{{ item.action|default(omit) }}"    
-    icmp_unreachable: "{{ item.icmp_unreachable|default(omit) }}"
-    # Profile Settings
-    group_profile: "{{ item.group_profile|default(omit) }}"
-    antivirus: "{{ item.antivirus|default(omit) }}"
-    vulnerability: "{{ item.vulnerability|default(omit) }}"
-    spyware: "{{ item.spyware|default(omit) }}"
-    url_filtering: "{{ item.url_filtering|default(omit) }}"
-    file_blocking: "{{ item.file_blocking|default(omit) }}"
-    data_filtering: "{{ item.data_filtering|default(omit) }}"
-    wildfire_analysis: "{{ item.wildfire_analysis|default(omit) }}"
-    # Log Settings
-    log_start: "{{ item.log_start|default(omit) }}"
-    log_end: "{{ item.log_end|default(omit) }}"
-    log_setting: "{{ item.log_setting|default(omit) }}"
-    # Other Settings
-    schedule: "{{ item.schedule|default(omit) }}"
-    disable_server_response_inspection: "{{ item.disable_server_response_inspection|default(omit) }}"
-  loop: "{{ security_rules }}"
+    - name: Security rule(s)
+      paloaltonetworks.panos.panos_security_rule:
+        provider: "{{ provider }}"
+        location: "{{ item.location|default(omit) }}"
+        existing_rule: "{{ item.existing_rule|default(omit) }}"
+        state: "{{ item.state|default('present') }}"
+        disabled: "{{ item.disabled|default(omit) }}"
+        # General
+        rule_name: "{{ item.rule_name }}"
+        rule_type: "{{ item.rule_type|default(omit) }}"
+        description: "{{ item.description|default(omit) }}"
+        tag_name: "{{ item.tag_name|default(omit) }}"
+        group_tag: "{{ item.group_tag|default(omit) }}"
+        # Source
+        source_zone: "{{ item.source_zone|default(omit) }}"
+        source_ip: "{{ item.source_ip|default(omit) }}"
+        negate_source: "{{ item.negate.source|default(omit) }}"
+        source_user: "{{ item.source_user|default(omit) }}"
+        # Destination
+        destination_zone: "{{ item.destination_zone|default(omit) }}"
+        destination_ip: "{{ item.destination_ip|default(omit) }}"
+        negate_destination: "{{ item.negate_destination|default(omit) }}"
+        # Application
+        application: "{{ item.application|default(omit) }}"
+        # Service & URL Category
+        service: "{{ item.service|default(omit) }}"
+        category: "{{ item.category|default(omit) }}"
+        # Action Settings
+        action: "{{ item.action|default(omit) }}"    
+        icmp_unreachable: "{{ item.icmp_unreachable|default(omit) }}"
+        # Profile Settings
+        group_profile: "{{ item.group_profile|default(omit) }}"
+        antivirus: "{{ item.antivirus|default(omit) }}"
+        vulnerability: "{{ item.vulnerability|default(omit) }}"
+        spyware: "{{ item.spyware|default(omit) }}"
+        url_filtering: "{{ item.url_filtering|default(omit) }}"
+        file_blocking: "{{ item.file_blocking|default(omit) }}"
+        data_filtering: "{{ item.data_filtering|default(omit) }}"
+        wildfire_analysis: "{{ item.wildfire_analysis|default(omit) }}"
+        # Log Settings
+        log_start: "{{ item.log_start|default(omit) }}"
+        log_end: "{{ item.log_end|default(omit) }}"
+        log_setting: "{{ item.log_setting|default(omit) }}"
+        # Other Settings
+        schedule: "{{ item.schedule|default(omit) }}"
+        disable_server_response_inspection: "{{ item.disable_server_response_inspection|default(omit) }}"
+      notify: panos_commit
+      loop: "{{ security_rules }}"
+  when: security_rules is defined
+
+- name: NAT rule tasks
+  block:
+    - name: NAT rule tag(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ nat_rules|map(attribute='tag_name', default='')|flatten|unique }}"
+      when: item != ""
+
+    - name: NAT rule group tag(s)
+      paloaltonetworks.panos.panos_tag_object:
+        provider: "{{ provider }}"
+        name: "{{ item }}"
+        color: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='color')|first|default('light gray') }}"
+        comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
+        state: "present"
+      notify: panos_commit
+      loop: "{{ nat_rules|map(attribute='group_tag', default='')|unique }}"
+      when: item != ""
+
+    - name: add a nat rule
+      paloaltonetworks.panos.panos_nat_rule2:
+        provider: "{{ provider }}"
+        location: "{{ item.location|default(omit) }}"
+        existing_rule: "{{ item.existing_rule|default(omit) }}"
+        state: "{{ item.state|default('present') }}"
+        disabled: "{{ item.disabled|default(omit) }}"
+        # General
+        name: "{{ item.name }}"
+        description: "{{ item.description|default('Managed by Ansible') }}"
+        tag_name: "{{ item.tag_name|default(omit) }}"
+        group_tag: "{{ item.group_tag|default(omit) }}"
+        nat_type: "{{ item.nat_type|default(omit) }}"
+        # Original Packet
+        from_zones: "{{ item.from_zones|default(omit) }}"
+        to_zones: "{{ item.to_zones|default(omit) }}"
+        to_interface: "{{ item.to_interface|default(omit) }}"
+        service: "{{ item.service|default(omit) }}"
+        source_addresses: "{{ item.source_addresses|default(omit) }}"
+        destination_addresses: "{{ item.destination_addresses|default(omit) }}"
+        # Translated Packet
+        ## Source Address Translation
+        source_translation_address_type: "{{ item.source_translation_address_type|default(omit) }}"
+        source_translation_fallback_interface: "{{ item.source_translation_fallback_interface|default(omit) }}"
+        source_translation_fallback_ip_address: "{{ item.source_translation_fallback_ip_address|default(omit) }}"
+        source_translation_fallback_ip_type: "{{ item.source_translation_fallback_ip_type|default(omit) }}"
+        source_translation_fallback_translated_addresses: "{{ item.source_translation_fallback_translated_addresses|default(omit) }}"
+        source_translation_fallback_type: "{{ item.source_translation_fallback_type|default(omit) }}"
+        source_translation_interface: "{{ item.source_translation_interface|default(omit) }}"
+        source_translation_ip_address: "{{ item.source_translation_ip_address|default(omit) }}"
+        source_translation_static_bi_directional: "{{ item.source_translation_static_bi_directional|default(omit) }}"
+        source_translation_static_translated_address: "{{ item.source_translation_static_translated_address|default(omit) }}"
+        source_translation_translated_addresses: "{{ item.source_translation_translated_addresses|default(omit) }}"
+        source_translation_type: "{{ item.source_translation_type|default(omit) }}"
+        ## Destination Address Translation
+        destination_dynamic_translated_address: "{{ item.destination_dynamic_translated_address|default(omit) }}"
+        destination_dynamic_translated_distribution: "{{ item.destination_dynamic_translated_distribution|default(omit) }}"
+        destination_dynamic_translated_port: "{{ item.destination_dynamic_translated_port|default(omit) }}"
+        destination_translated_address: "{{ item.destination_translated_address|default(omit) }}"
+        destination_translated_port: "{{ item.destination_translated_port|default(omit) }}"
+      notify: panos_commit
+      loop: "{{ nat_rules }}"
+  when: nat_rules is defined

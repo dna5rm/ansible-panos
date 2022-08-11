@@ -73,3 +73,14 @@
 
   when:
     - service_objects is defined
+
+- name: Application group(s)
+  paloaltonetworks.panos.panos_application_group:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    tag: "{{ item.tag|default(omit) }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  loop: "{{ application_groups }}"
+  when: application_groups is defined

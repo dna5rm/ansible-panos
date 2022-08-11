@@ -53,10 +53,8 @@
     lifetime_seconds: "{{ item.lifetime_seconds|default('28800') }}"
     state: "{{ item.state|default('present') }}"
   notify: panos_commit
-  loop: "{{ crypto_profiles.ike }}"
-  when:
-    - crypto_profiles is defined
-    - crypto_profiles.ike is defined
+  loop: "{{ ike_profiles }}"
+  when: ike_profiles is defined
 
 - name: IPsec crypto profile(s)
   paloaltonetworks.panos.panos_ipsec_profile:
@@ -67,10 +65,8 @@
     lifetime_seconds: "{{ item.lifetime_seconds|default('3600') }}"
     state: "{{ item.state|default('present') }}"
   notify: panos_commit
-  loop: "{{ crypto_profiles.ipsec }}"
-  when:
-    - crypto_profiles is defined
-    - crypto_profiles.ipsec is defined
+  loop: "{{ ipsec_profiles }}"
+  when: ipsec_profiles is defined
 
 - name: Manage firewall security zones
   ansible.builtin.include_tasks: panos_network_zones.yaml
