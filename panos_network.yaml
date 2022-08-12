@@ -177,7 +177,38 @@
       no_log: true
       notify: panos_commit
       loop: "{{ interfaces|selectattr('type', 'equalto', 'vwire')|map(attribute='vwire')|list|unique }}"
-
   when:
     - interfaces is defined
     - ansible_facts.net_interfaces is defined
+
+- name: VR_default - ECMP enable
+  paloaltonetworks.panos.panos_config_element:
+    provider: "{{ provider }}"
+    xpath: "/config/devices/entry[@name='localhost.localdomain']/network/virtual-router/entry[@name='default']/ecmp"
+    element: |
+      <algorithm>
+        <ip-modulo/>
+      </algorithm>
+      <enable>yes</enable>
+      <max-path>4</max-path>
+  notify: panos_commit
+
+- name: Static route(s)
+  paloaltonetworks.panos.panos_static_route:
+    provider: "{{ provider }}"
+    name: "{{ item.name }}"
+    destination: "{{ item.destination }}"
+    interface: "{{ item.interface|default(omit) }}"
+    nexthop: "{{ item.nexthop|default(omit) }}"
+    nexthop_type: "{{ item.nexthop_type|default(omit) }}"
+    admin_dist: "{{ item.admin_dist|default(omit) }}"
+    metric: "{{ item.metric|default(omit) }}"
+    enable_path_monitor: "{{ item.enable_path_monitor|default(omit) }}"
+    failure_condition: "{{ item.failure_condition|default(omit) }}"
+    preemptive_hold_time: "{{ item.preemptive_hold_time|default(omit) }}"
+    virtual_router: "{{ item.virtual_router|default(omit) }}"
+    state: "{{ item.state|default('present') }}"
+  notify: panos_commit
+  loop: "{{ static_routes }}"
+  when:
+    - static_routes is defined

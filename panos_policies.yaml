@@ -97,7 +97,7 @@
       loop: "{{ nat_rules|map(attribute='group_tag', default='')|unique }}"
       when: item != ""
 
-    - name: add a nat rule
+    - name: NAT rule(s)
       paloaltonetworks.panos.panos_nat_rule2:
         provider: "{{ provider }}"
         location: "{{ item.location|default(omit) }}"
