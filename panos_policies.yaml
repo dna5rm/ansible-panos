@@ -83,7 +83,7 @@
         comments: "{{ tags|default()|selectattr('name', 'equalto', item)|map(attribute='comments')|first|default('Ansible Managed') }}"
         state: "present"
       notify: panos_commit
-      loop: "{{ nat_rules|map(attribute='tag_name', default='')|flatten|unique }}"
+      loop: "{{ nat_rules|map(attribute='tags', default='')|flatten|unique }}"
       when: item != ""
 
     - name: NAT rule group tag(s)
@@ -107,7 +107,7 @@
         # General
         name: "{{ item.name }}"
         description: "{{ item.description|default('Managed by Ansible') }}"
-        tag_name: "{{ item.tag_name|default(omit) }}"
+        tags: "{{ item.tags|default(omit) }}"
         group_tag: "{{ item.group_tag|default(omit) }}"
         nat_type: "{{ item.nat_type|default(omit) }}"
         # Original Packet

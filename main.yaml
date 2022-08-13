@@ -1,7 +1,7 @@
 #!/bin/env -S ansible-playbook -i inventory
 ---
 - name: manage panos host
-  hosts: pa440
+  hosts: panos
   gather_facts: false
 
   vars:

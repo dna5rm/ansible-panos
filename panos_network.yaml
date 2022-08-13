@@ -138,6 +138,19 @@
       when:
         - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
 
+    - name: Layer3 interface(s)
+      paloaltonetworks.panos.panos_interface:
+        provider: "{{ provider }}"
+        if_name: "{{ item.name }}"
+        comment: "{{ item.comment|default('Ansible Managed') }}"
+        mode: "layer3"
+        zone_name: "{{ item.zone_name }}"
+      ignore_errors: true
+      notify: panos_commit
+      loop: "{{ interfaces|selectattr('type', 'equalto', 'layer3') }}"
+      when:
+        - item.name not in ansible_facts.net_interfaces|selectattr('name', 'in', item.name)|map(attribute='name')
+
     - name: Aggregate member interface(s)
       paloaltonetworks.panos.panos_interface:
         provider: "{{ provider }}"
