@@ -29,7 +29,7 @@
 
      - name: Imported tasks
        block:
-         - ansible.builtin.include_tasks: panos_system.yaml
+         - ansible.builtin.include_tasks: panos_device.yaml
          - ansible.builtin.include_tasks: panos_network.yaml
          - ansible.builtin.include_tasks: panos_objects.yaml
          - ansible.builtin.include_tasks: panos_policies.yaml
