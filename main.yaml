@@ -14,11 +14,6 @@
 
   pre_tasks:
 
-#    - name: Fail if not panos
-#      ansible.builtin.fail:
-#      no_log: true
-#      when: ansible_network_os != "paloaltonetworks.panos"
-
     - name: panos_facts
       paloaltonetworks.panos.panos_facts:
         provider: "{{ provider }}"
