@@ -1,6 +1,7 @@
 #!/bin/env -S ansible-playbook -i inventory
 ---
 - name: manage panos host
+  connection: ansible.builtin.local
   hosts: all
   gather_facts: false
 
